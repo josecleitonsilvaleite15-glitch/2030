@@ -65,11 +65,31 @@ const SPEED_TIMINGS: Record<SpeedMode, { onMs: number; gapMs: number; label: str
   rapido: { onMs: 340, gapMs: 140, label: 'Rápido' },
 };
 
-const TOTAL_ROUNDS = 5;
+// 10 phases: 1..6 presses from Phase 1 to 6, then distinct 6-press combinations in Phases 7..10
+const PHASE_SEQ_LENGTHS = [1, 2, 3, 4, 5, 6, 6, 6, 6, 6];
+
+function generateDistinctSixCombo(usedKeys: Set<string>): number[] {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const seq: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      seq.push(Math.floor(Math.random() * PADS.length));
+    }
+    const key = seq.join('-');
+    // Ensure a varied, genuinely different 6-press combination
+    if (!usedKeys.has(key) && new Set(seq).size >= 3) {
+      usedKeys.add(key);
+      return seq;
+    }
+  }
+  const fallback = [0, 1, 2, 3, 1, 0];
+  usedKeys.add(fallback.join('-'));
+  return fallback;
+}
 
 export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
   const [speed, setSpeed] = useState<SpeedMode>('normal');
-  const [sequence, setSequence] = useState<number[]>(() => [Math.floor(Math.random() * 4)]);
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const [sequence, setSequence] = useState<number[]>(() => [Math.floor(Math.random() * PADS.length)]);
   const [playerStep, setPlayerStep] = useState(0);
   const [activePad, setActivePad] = useState<number | null>(null);
   const [phase, setPhase] = useState<'showing' | 'listening' | 'replaying' | 'won'>('showing');
@@ -77,6 +97,7 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
 
   const timeoutsRef = useRef<number[]>([]);
   const speedRef = useRef<SpeedMode>(speed);
+  const usedSixCombosRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     speedRef.current = speed;
@@ -98,7 +119,7 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
       const stepTotal = onMs + gapMs;
 
       seq.forEach((padId, index) => {
-        const startDelay = 450 + index * stepTotal;
+        const startDelay = 500 + index * stepTotal;
 
         const tOn = window.setTimeout(() => {
           setActivePad(padId);
@@ -112,7 +133,7 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
         timeoutsRef.current.push(tOn, tOff);
       });
 
-      const finishDelay = 450 + seq.length * stepTotal + 120;
+      const finishDelay = 500 + seq.length * stepTotal + 120;
       const tDone = window.setTimeout(() => {
         setPhase('listening');
         setMessage('Sua vez! Toque na mesma ordem.');
@@ -136,10 +157,11 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
 
   const handleRestart = () => {
     clearTimers();
-    const first = [Math.floor(Math.random() * 4)];
+    usedSixCombosRef.current.clear();
+    setPhaseIndex(0);
     setPhase('showing');
     setMessage('Observe a luz que vai acender...');
-    setSequence(first);
+    setSequence([Math.floor(Math.random() * PADS.length)]);
   };
 
   const handlePadPress = (padId: number) => {
@@ -158,21 +180,46 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
       const nextStep = playerStep + 1;
 
       if (nextStep >= sequence.length) {
-        // Round complete!
-        if (sequence.length >= TOTAL_ROUNDS) {
+        // Phase complete!
+        if (phaseIndex >= PHASE_SEQ_LENGTHS.length - 1) {
           calmAudio.playCelebrate();
-          setPhase('won');
+          setPhase('replaying');
+          setMessage('Incrível! Você completou todas as 10 fases! 🌟');
+          const tWin = window.setTimeout(() => {
+            setPhase('won');
+          }, 850);
+          timeoutsRef.current.push(tWin);
           return;
         }
 
+        const nextIdx = phaseIndex + 1;
+        const isSixComboPhase = nextIdx >= 6; // Phases 7, 8, 9, 10 (indices 6..9)
+
+        if (phaseIndex === 5) {
+          usedSixCombosRef.current.add(sequence.join('-'));
+        }
+
         setPhase('replaying');
-        setMessage('Muito bem! Agora vem mais uma cor... ✅');
+        setMessage(
+          isSixComboPhase
+            ? `Muito bem! Na Fase ${nextIdx + 1} vem uma nova combinação de 6! ✅`
+            : 'Muito bem! Agora vem mais uma cor... ✅'
+        );
         calmAudio.playSuccess();
 
         const tNext = window.setTimeout(() => {
-          setMessage('Observe com atenção...');
-          setSequence((prev) => [...prev, Math.floor(Math.random() * 4)]);
-        }, 1000);
+          setPhaseIndex(nextIdx);
+          setMessage(
+            isSixComboPhase
+              ? `Fase ${nextIdx + 1}: observe a nova sequência de 6...`
+              : 'Observe com atenção...'
+          );
+          if (isSixComboPhase) {
+            setSequence(generateDistinctSixCombo(usedSixCombosRef.current));
+          } else {
+            setSequence((prev) => [...prev, Math.floor(Math.random() * PADS.length)]);
+          }
+        }, 1050);
         timeoutsRef.current.push(tNext);
       } else {
         setPlayerStep(nextStep);
@@ -196,8 +243,8 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
       <div className="py-6 px-4">
         <GameCompletionPanel
           currentGame="simon"
-          title="Incrível! Você acertou a sequência!"
-          subtitle={`Você lembrou todas as ${TOTAL_ROUNDS} rodadas de luzes e sons no seu ritmo.`}
+          title="Incrível! Você completou as 10 fases!"
+          subtitle={`Você lembrou todas as ${PHASE_SEQ_LENGTHS.length} fases de luzes e sons no seu ritmo.`}
           onReplay={handleRestart}
           onSelectGame={onSelectGame}
         />
@@ -205,12 +252,16 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
     );
   }
 
+  const seqLen = PHASE_SEQ_LENGTHS[phaseIndex];
+
   return (
     <div className="w-full px-3.5 py-4 flex flex-col items-center">
-      {/* Round & Speed Control Row */}
+      {/* Phase & Speed Control Row */}
       <div className="w-full flex flex-col items-center gap-2.5 mb-4">
-        <div className="text-xs font-semibold text-[#4A6B8C] tabular-nums">
-          Rodada {sequence.length} de {TOTAL_ROUNDS}
+        <div className="text-xs font-semibold text-[#4A6B8C] tabular-nums flex items-center gap-1.5">
+          <span>Fase {phaseIndex + 1} de {PHASE_SEQ_LENGTHS.length}</span>
+          <span aria-hidden="true">·</span>
+          <span>{seqLen} {seqLen === 1 ? 'aperto' : 'apertos'}</span>
         </div>
 
         {/* Speed Selector */}
@@ -244,7 +295,7 @@ export const SimonGame: React.FC<SimonGameProps> = ({ onSelectGame }) => {
         {message}
       </div>
 
-      {/* 2x2 Tactile Simon Pads */}
+      {/* 2x2 Tactile Simon Pads (4 buttons) */}
       <div className="grid grid-cols-2 gap-3.5 w-full max-w-[310px] aspect-square">
         {PADS.map((pad) => {
           const isLit = activePad === pad.id;

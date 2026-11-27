@@ -21,7 +21,7 @@ interface SequencePuzzle {
 }
 
 const ALL_PUZZLES: SequencePuzzle[] = [
-  // Formas
+  // Formas (6)
   {
     id: 'f1',
     category: 'formas',
@@ -49,7 +49,34 @@ const ALL_PUZZLES: SequencePuzzle[] = [
     patternHint: 'Verde, roxo, azul...',
     repeatUnitSize: 3,
   },
-  // Números
+  {
+    id: 'f4',
+    category: 'formas',
+    items: ['⭐', '🟦', '⭐', '🟦', '⭐'],
+    answer: '🟦',
+    options: ['🟦', '⭐', '🟡'],
+    patternHint: 'Estrela, quadrado azul...',
+    repeatUnitSize: 2,
+  },
+  {
+    id: 'f5',
+    category: 'formas',
+    items: ['🟠', '🟢', '🟢', '🟠', '🟢'],
+    answer: '🟢',
+    options: ['🟢', '🟠', '🔵'],
+    patternHint: 'Laranja, verde, verde...',
+    repeatUnitSize: 3,
+  },
+  {
+    id: 'f6',
+    category: 'formas',
+    items: ['💜', '💛', '💚', '💜', '💛'],
+    answer: '💚',
+    options: ['💚', '💜', '💛'],
+    patternHint: 'Roxo, amarelo, verde...',
+    repeatUnitSize: 3,
+  },
+  // Números (6)
   {
     id: 'n1',
     category: 'numeros',
@@ -77,7 +104,34 @@ const ALL_PUZZLES: SequencePuzzle[] = [
     patternHint: '1, 1, 3...',
     repeatUnitSize: 3,
   },
-  // Animais
+  {
+    id: 'n4',
+    category: 'numeros',
+    items: ['1', '2', '3', '4', '5'],
+    answer: '6',
+    options: ['6', '7', '4'],
+    patternHint: 'Contando de 1 em 1...',
+    repeatUnitSize: 1,
+  },
+  {
+    id: 'n5',
+    category: 'numeros',
+    items: ['5', '10', '15', '20'],
+    answer: '25',
+    options: ['25', '22', '30'],
+    patternHint: 'Somando 5 em 5...',
+    repeatUnitSize: 1,
+  },
+  {
+    id: 'n6',
+    category: 'numeros',
+    items: ['4', '5', '4', '5', '4'],
+    answer: '5',
+    options: ['5', '4', '6'],
+    patternHint: '4, 5, 4, 5...',
+    repeatUnitSize: 2,
+  },
+  // Animais (6)
   {
     id: 'a1',
     category: 'animais',
@@ -105,9 +159,36 @@ const ALL_PUZZLES: SequencePuzzle[] = [
     patternHint: 'Borboleta, passarinho, coelho...',
     repeatUnitSize: 3,
   },
+  {
+    id: 'a4',
+    category: 'animais',
+    items: ['🐸', '🐝', '🐸', '🐝', '🐸'],
+    answer: '🐝',
+    options: ['🐝', '🐸', '🐞'],
+    patternHint: 'Sapo, abelha, sapo...',
+    repeatUnitSize: 2,
+  },
+  {
+    id: 'a5',
+    category: 'animais',
+    items: ['🐞', '🐞', '🐌', '🐞', '🐞'],
+    answer: '🐌',
+    options: ['🐌', '🐞', '🦋'],
+    patternHint: 'Joaninha, joaninha, caracol...',
+    repeatUnitSize: 3,
+  },
+  {
+    id: 'a6',
+    category: 'animais',
+    items: ['🐤', '🦆', '🐤', '🦆', '🐤'],
+    answer: '🦆',
+    options: ['🦆', '🐤', '🐦'],
+    patternHint: 'Pintinho, pato, pintinho...',
+    repeatUnitSize: 2,
+  },
 ];
 
-const PUZZLES_PER_ROUND = 6;
+const PUZZLES_PER_ROUND = 10;
 const HINT_DELAY_MS = 7000;
 
 export const SequenceGame: React.FC<SequenceGameProps> = ({ onSelectGame }) => {
@@ -128,12 +209,19 @@ export const SequenceGame: React.FC<SequenceGameProps> = ({ onSelectGame }) => {
         ? ALL_PUZZLES
         : ALL_PUZZLES.filter((p) => p.category === category);
 
-    // Shuffle options deterministically per round
-    const ordered = [...pool].sort(() => Math.random() - 0.5);
-    const list =
-      ordered.length >= PUZZLES_PER_ROUND
-        ? ordered.slice(0, PUZZLES_PER_ROUND)
-        : [...ordered, ...ordered].slice(0, PUZZLES_PER_ROUND);
+    const firstPass = [...pool].sort(() => Math.random() - 0.5);
+    let list = firstPass.slice(0, PUZZLES_PER_ROUND);
+
+    if (list.length < PUZZLES_PER_ROUND) {
+      const secondPass = [...pool].sort(() => Math.random() - 0.5);
+      // Avoid immediate repeat across boundary
+      if (secondPass.length > 1 && secondPass[0].id === list[list.length - 1].id) {
+        const swapped = secondPass[0];
+        secondPass[0] = secondPass[1];
+        secondPass[1] = swapped;
+      }
+      list = [...list, ...secondPass].slice(0, PUZZLES_PER_ROUND);
+    }
 
     return list.map((p) => ({
       ...p,
@@ -218,7 +306,7 @@ export const SequenceGame: React.FC<SequenceGameProps> = ({ onSelectGame }) => {
       <div className="py-6 px-4">
         <GameCompletionPanel
           currentGame="sequence"
-          title="Parabéns! Todas as sequências completas!"
+          title="Parabéns! Todas as 10 fases completas!"
           subtitle="Você observou cada padrão com calma e descobriu o que vinha depois."
           onReplay={handleReplay}
           onSelectGame={onSelectGame}
@@ -232,7 +320,7 @@ export const SequenceGame: React.FC<SequenceGameProps> = ({ onSelectGame }) => {
       {/* Category Filter & Progress */}
       <div className="w-full flex flex-col items-center gap-2.5 mb-4">
         <span className="text-xs font-semibold text-[#4A6B8C] tabular-nums">
-          Sequência {currentIdx + 1} de {puzzles.length}
+          Fase {currentIdx + 1} de {puzzles.length}
         </span>
 
         <div className="w-full grid grid-cols-4 gap-1 p-1 bg-sky-100/80 border border-sky-200 rounded-2xl">

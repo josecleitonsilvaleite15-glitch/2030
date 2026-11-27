@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GameId, GAMES } from './types/game';
 import { calmAudio } from './utils/audio';
 import { TopBar } from './components/TopBar';
@@ -31,6 +31,47 @@ export default function App() {
   const [muted, setMuted] = useState<boolean>(false);
   const [breathingOpen, setBreathingOpen] = useState<boolean>(false);
   const nativeApp = isNativeCapacitor();
+  const mainRef = useRef<HTMLElement>(null);
+
+  const navigateToGame = useCallback(
+    (nextGame: GameId) => {
+      if (nextGame === 'menu') {
+        if (activeGame !== 'menu') {
+          if (window.history.state?.mundoCalmoGame) {
+            window.history.back();
+            return;
+          }
+          setActiveGame('menu');
+        }
+        return;
+      }
+
+      if (activeGame === 'menu') {
+        window.history.pushState({ mundoCalmoGame: nextGame }, '');
+      } else {
+        window.history.replaceState({ mundoCalmoGame: nextGame }, '');
+      }
+      setActiveGame(nextGame);
+    },
+    [activeGame]
+  );
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (breathingOpen) {
+        setBreathingOpen(false);
+      }
+      const target = (event.state?.mundoCalmoGame as GameId | undefined) ?? 'menu';
+      setActiveGame(target);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [breathingOpen]);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeGame]);
 
   const handleChangeVolume = useCallback(
     (nextVol: number) => {
@@ -79,7 +120,7 @@ export default function App() {
       >
         <TopBar
           activeGame={activeGame}
-          onGoHome={() => setActiveGame('menu')}
+          onGoHome={() => navigateToGame('menu')}
           volume={volume}
           muted={muted}
           onChangeVolume={handleChangeVolume}
@@ -88,9 +129,9 @@ export default function App() {
           onOpenBreathing={() => setBreathingOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
           {activeGame === 'menu' && (
-            <div className="w-full px-4 py-5 flex flex-col items-center">
+            <div key="menu" className="w-full px-4 py-5 flex flex-col items-center animate-view-enter">
               {/* Cover Section: Retro Polygonal Dandelion + Title */}
               <section className="w-full bg-white border border-sky-200 rounded-3xl px-4 py-5 shadow-xs flex flex-col items-center text-center gap-3 mb-5">
                 <PolygonalDandelion className="w-32 h-28 shrink-0" />
@@ -118,7 +159,7 @@ export default function App() {
                       <TactileButton
                         key={game.id}
                         type="button"
-                        onClick={() => setActiveGame(game.id)}
+                        onClick={() => navigateToGame(game.id)}
                         className="group w-full bg-white hover:bg-sky-50/70 border-2 border-sky-200 hover:border-[#3B9AE1] rounded-2xl p-3.5 flex items-center gap-4 text-left shadow-xs transition-colors"
                       >
                         <div className="w-16 h-16 rounded-2xl bg-[#F0F7FF] border border-sky-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-150">
@@ -141,10 +182,26 @@ export default function App() {
             </div>
           )}
 
-          {activeGame === 'memory' && <MemoryGame onSelectGame={setActiveGame} />}
-          {activeGame === 'balls' && <FallingBallsGame onSelectGame={setActiveGame} />}
-          {activeGame === 'simon' && <SimonGame onSelectGame={setActiveGame} />}
-          {activeGame === 'sequence' && <SequenceGame onSelectGame={setActiveGame} />}
+          {activeGame === 'memory' && (
+            <div key="memory" className="animate-view-enter">
+              <MemoryGame onSelectGame={navigateToGame} />
+            </div>
+          )}
+          {activeGame === 'balls' && (
+            <div key="balls" className="animate-view-enter">
+              <FallingBallsGame onSelectGame={navigateToGame} />
+            </div>
+          )}
+          {activeGame === 'simon' && (
+            <div key="simon" className="animate-view-enter">
+              <SimonGame onSelectGame={navigateToGame} />
+            </div>
+          )}
+          {activeGame === 'sequence' && (
+            <div key="sequence" className="animate-view-enter">
+              <SequenceGame onSelectGame={navigateToGame} />
+            </div>
+          )}
         </main>
 
         <OfflineIndicator />

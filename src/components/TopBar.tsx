@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Volume2, Volume1, VolumeX, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Volume2, Volume1, VolumeX, ArrowLeft, Home } from 'lucide-react';
 import { TactileButton } from './TactileButton';
 import { IconBreathing } from './illustrations/GameIcons';
 import { GameId, GAMES } from '../types/game';
@@ -27,22 +27,30 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const [sliderOpen, setSliderOpen] = useState(false);
 
+  useEffect(() => {
+    setSliderOpen(false);
+  }, [activeGame]);
+
   const currentMeta = GAMES.find((g) => g.id === activeGame);
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   return (
     <header className="w-full bg-white/95 backdrop-blur-sm border-b border-sky-100 sticky top-0 z-40 shrink-0">
       <div className="px-3 h-14 flex items-center justify-between gap-2">
-        {/* Left Zone: Home / Back */}
+        {/* Left Zone: Clear Home / Back button */}
         <div className="flex items-center min-w-0">
           {activeGame !== 'menu' ? (
             <TactileButton
               type="button"
-              onClick={onGoHome}
+              onClick={() => {
+                setSliderOpen(false);
+                onGoHome();
+              }}
               aria-label="Voltar para a tela inicial"
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-[40px] rounded-xl bg-sky-50 hover:bg-sky-100 text-[#1A365D] font-semibold text-xs border border-sky-200 whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[42px] rounded-xl bg-[#E8F3FF] hover:bg-sky-100 text-[#1A365D] font-display font-bold text-xs border-2 border-sky-300 shadow-xs whitespace-nowrap shrink-0"
             >
               <ArrowLeft className="w-4 h-4 text-[#3B9AE1]" />
+              <Home className="w-3.5 h-3.5 text-[#3B9AE1]" />
               <span>Início</span>
             </TactileButton>
           ) : (

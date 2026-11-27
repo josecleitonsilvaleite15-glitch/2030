@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Home } from 'lucide-react';
 import { TactileButton } from '../TactileButton';
 import { HandDrawnDandelionCardBack } from '../illustrations/GameIcons';
 import { GameCompletionPanel } from '../GameCompletionPanel';
@@ -24,10 +25,12 @@ const CARD_SYMBOLS: CardSymbol[] = [
   { key: 'nuvem', label: 'Nuvem', emoji: '☁️', bg: 'bg-cyan-50', border: 'border-cyan-200' },
   { key: 'flor', label: 'Flor', emoji: '🌸', bg: 'bg-pink-50', border: 'border-pink-200' },
   { key: 'folha', label: 'Folha', emoji: '🍃', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  { key: 'gotinha', label: 'Gotinha', emoji: '💧', bg: 'bg-blue-50', border: 'border-blue-200' },
+  { key: 'borboleta', label: 'Borboleta', emoji: '🦋', bg: 'bg-purple-50', border: 'border-purple-200' },
 ];
 
-// Progressive stages: 4 cards -> 6 cards -> 8 cards
-const STAGE_COUNTS = [4, 6, 8];
+// 10 progressive stages: 4 -> 4 -> 6 -> 6 -> 6 -> 8 -> 8 -> 8 -> 10 -> 12 cards
+const STAGE_COUNTS = [4, 4, 6, 6, 6, 8, 8, 8, 10, 12];
 
 interface CardItem {
   uid: number;
@@ -102,11 +105,13 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onSelectGame }) => {
           const allMatched = updated.every((c) => c.matched);
           if (allMatched) {
             calmAudio.playCelebrate();
-            if (stageIndex >= STAGE_COUNTS.length - 1) {
-              setAllCompleted(true);
-            } else {
-              setStageWon(true);
-            }
+            window.setTimeout(() => {
+              if (stageIndex >= STAGE_COUNTS.length - 1) {
+                setAllCompleted(true);
+              } else {
+                setStageWon(true);
+              }
+            }, 450);
           }
           return updated;
         });
@@ -153,8 +158,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onSelectGame }) => {
       <div className="py-6 px-4">
         <GameCompletionPanel
           currentGame="memory"
-          title="Parabéns! Você completou todas as fases!"
-          subtitle="Você encontrou todos os pares de 4, 6 e 8 cartas com muita calma e atenção."
+          title="Parabéns! Você completou todas as 10 fases!"
+          subtitle="Você encontrou todos os pares de cartas com muita calma e atenção."
           onReplay={handleRestartAll}
           onSelectGame={onSelectGame}
         />
@@ -169,6 +174,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onSelectGame }) => {
       : cardCount === 6
       ? 'grid-cols-3 gap-2.5'
       : 'grid-cols-4 gap-2';
+
+  const compactCard = cardCount >= 8;
 
   return (
     <div className="w-full px-3.5 py-4 flex flex-col items-center">
@@ -194,75 +201,82 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onSelectGame }) => {
         {feedback.text}
       </div>
 
-      {/* Cards Grid */}
-      <div className={`grid ${gridColsClass} w-full mx-auto`}>
-        {cards.map((card, idx) => {
-          const isOpen = card.flipped || card.matched;
-          return (
-            <div key={`${stageIndex}-${card.uid}`} className="perspective-1000 aspect-[3/4]">
-              <TactileButton
-                type="button"
-                silentTap
-                disabled={isOpen || locked}
-                onClick={() => handleCardClick(idx)}
-                aria-label={isOpen ? `Carta ${card.symbol.label}` : `Carta virada ${idx + 1}`}
-                className="w-full h-full rounded-2xl p-0 bg-transparent disabled:opacity-100"
-              >
-                <div
-                  className={`relative w-full h-full transform-style-3d transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    isOpen ? 'rotate-y-180' : ''
-                  }`}
-                >
-                  {/* Back of Card: Hand-drawn Dandelion */}
-                  <div className="absolute inset-0 backface-hidden rounded-2xl bg-white border-2 border-sky-200 shadow-sm hover:border-sky-300 flex items-center justify-center p-2">
-                    <HandDrawnDandelionCardBack className="w-full h-full" />
-                  </div>
-
-                  {/* Front of Card: Friendly Symbol */}
-                  <div
-                    className={`absolute inset-0 backface-hidden rotate-y-180 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1.5 shadow-sm ${
-                      card.symbol.bg
-                    } ${card.matched ? 'border-emerald-400 ring-2 ring-emerald-200' : card.symbol.border}`}
-                  >
-                    <span className={`${cardCount === 8 ? 'text-2xl' : 'text-3xl'} select-none`} aria-hidden="true">
-                      {card.symbol.emoji}
-                    </span>
-                    <span className={`font-display font-semibold text-[#1A365D] ${cardCount === 8 ? 'text-[11px]' : 'text-xs'}`}>
-                      {card.symbol.label}
-                    </span>
-                  </div>
-                </div>
-              </TactileButton>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Between-stage transition (4 -> 6 -> 8 cards) */}
-      {stageWon && (
-        <div className="mt-7 w-full max-w-lg bg-white border border-sky-200 rounded-3xl p-6 text-center shadow-sm">
-          <p className="font-display font-bold text-xl text-[#1A365D] mb-2">
-            Fase concluída! 🎉
+      {/* Between-stage transition or Cards Grid */}
+      {stageWon ? (
+        <div className="mt-2 w-full max-w-lg bg-white border border-sky-200 rounded-3xl p-6 text-center shadow-sm">
+          <p className="font-display font-bold text-xl text-[#1A365D] mb-1.5">
+            Fase {stageIndex + 1} de {STAGE_COUNTS.length} concluída! 🎉
           </p>
           <p className="text-sm text-[#4A6B8C] mb-5">
-            Agora vamos experimentar com {STAGE_COUNTS[stageIndex + 1]} cartas?
+            Vamos para a Fase {stageIndex + 2} com {STAGE_COUNTS[stageIndex + 1]} cartas?
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-col gap-2.5">
             <TactileButton
               type="button"
               onClick={() => startStage(stageIndex + 1)}
-              className="px-6 py-3 min-h-[48px] rounded-2xl bg-[#3B9AE1] hover:bg-[#2F89CE] text-white font-display font-semibold text-base"
+              className="w-full px-5 py-3 min-h-[48px] rounded-2xl bg-[#3B9AE1] hover:bg-[#2F89CE] text-white font-display font-semibold text-base"
             >
-              Continuar ({STAGE_COUNTS[stageIndex + 1]} cartas)
+              Continuar · Fase {stageIndex + 2}
             </TactileButton>
             <TactileButton
               type="button"
               onClick={() => onSelectGame('menu')}
-              className="px-5 py-3 min-h-[48px] rounded-2xl bg-sky-50 hover:bg-sky-100 text-[#1A365D] font-semibold text-sm border border-sky-200"
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 min-h-[44px] rounded-2xl bg-[#E8F3FF] hover:bg-sky-100 text-[#1A365D] font-display font-bold text-sm border-2 border-sky-300"
             >
-              Trocar de jogo
+              <Home className="w-4 h-4 text-[#3B9AE1]" />
+              <span>Voltar para a tela inicial</span>
             </TactileButton>
           </div>
+        </div>
+      ) : (
+        <div className={`grid ${gridColsClass} w-full mx-auto`}>
+          {cards.map((card, idx) => {
+            const isOpen = card.flipped || card.matched;
+            return (
+              <div key={`${stageIndex}-${card.uid}`} className="perspective-1000 aspect-[3/4]">
+                <TactileButton
+                  type="button"
+                  silentTap
+                  disabled={isOpen || locked}
+                  onClick={() => handleCardClick(idx)}
+                  aria-label={isOpen ? `Carta ${card.symbol.label}` : `Carta virada ${idx + 1}`}
+                  className="w-full h-full rounded-2xl p-0 bg-transparent disabled:opacity-100"
+                >
+                  <div
+                    className={`relative w-full h-full transform-style-3d transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      isOpen ? 'rotate-y-180' : ''
+                    }`}
+                  >
+                    {/* Back of Card: Hand-drawn Dandelion */}
+                    <div className="absolute inset-0 backface-hidden rounded-2xl bg-white border-2 border-sky-200 shadow-sm hover:border-sky-300 flex items-center justify-center p-2">
+                      <HandDrawnDandelionCardBack className="w-full h-full" />
+                    </div>
+
+                    {/* Front of Card: Friendly Symbol */}
+                    <div
+                      className={`absolute inset-0 backface-hidden rotate-y-180 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1.5 shadow-sm ${
+                        card.symbol.bg
+                      } ${card.matched ? 'border-emerald-400 ring-2 ring-emerald-200' : card.symbol.border}`}
+                    >
+                      <span
+                        className={`${cardCount >= 12 ? 'text-xl' : compactCard ? 'text-2xl' : 'text-3xl'} select-none`}
+                        aria-hidden="true"
+                      >
+                        {card.symbol.emoji}
+                      </span>
+                      <span
+                        className={`font-display font-semibold text-[#1A365D] ${
+                          cardCount >= 12 ? 'text-[10px]' : compactCard ? 'text-[11px]' : 'text-xs'
+                        }`}
+                      >
+                        {card.symbol.label}
+                      </span>
+                    </div>
+                  </div>
+                </TactileButton>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
